@@ -91,12 +91,12 @@ namespace TestLibrary
         [TearDown]
         public void TearDown()
         {
-            foreach( string file in Directory.GetFiles(CMISSYNCDIR)) {
+            // System.Threading.Thread.Sleep(30 * 1000);
+            foreach(string file in Directory.GetFiles(CMISSYNCDIR)) {
                 if(file.EndsWith(".cmissync"))
                 {
                     File.Delete(file);
-                }
-                    
+                } 
             }
         }
 
@@ -435,6 +435,7 @@ namespace TestLibrary
                     // Clean.
                     Console.WriteLine("Clean all.");
                     Clean(localDirectory, synchronizedFolder);
+                    synchronizedFolder.Dispose();
                 }
             }
         }
@@ -1766,10 +1767,10 @@ namespace TestLibrary
 
                 //  create and delete heavy folder in concurrent
                 Console.WriteLine(" Remote create and delete heavy folder");
-                cmis.Suspend();
+                cmis.Disable();
                 folder1 = CreateFolder(folder, name1);
                 CreateHeavyFolderRemote(folder1);
-                cmis.Resume();
+                cmis.Enable();
                 folder1.DeleteTree(true, null, true);
                 Assert.IsTrue(WaitUntilDone(delegate
                 {

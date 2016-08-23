@@ -93,10 +93,10 @@ namespace CmisSync.Lib.Sync
             private bool syncing;
 
             /// <summary>
-            /// Whether sync is actually being in pause right now.
-            /// This is different from CmisRepo.Status, which means "paused, or will be paused as soon as possible"
+            /// Whether sync is actually enabled right now.
+            /// This is different from CmisRepo.Enabled, which if false means "disabled, or will be disable as soon as possible"
             /// </summary>
-            private bool suspended = false;
+            private bool enabled = false;
 
             /// <summary>
             /// Listener we inform about activity (used by spinner).
@@ -159,7 +159,7 @@ namespace CmisSync.Lib.Sync
                 this.repo = repo;
                 this.repoInfo = repoInfo;
 
-                suspended = this.repoInfo.IsSuspended;
+                enabled = this.repoInfo.IsSuspended;
 
                 // Database is the user's AppData/Roaming
                 database = new Database.Database(repoInfo.CmisDatabase, repo.LocalPath, repoInfo.RemotePath);
@@ -341,7 +341,7 @@ namespace CmisSync.Lib.Sync
             /// </summary>
             public bool isSuspended()
             {
-                return this.suspended;
+                return this.enabled;
             }
 
             /// <summary>
@@ -953,21 +953,20 @@ namespace CmisSync.Lib.Sync
                         return false;
                     }
 
-
-                    // Update or conflict
+                    // Either it is an update; or a file with the same name has been created at the same time locally, resulting in a conflict.
                     if (File.Exists(filePath))
                     {
                         if (database.LocalFileHasChanged(filePath)) // Conflict. Server-side file and local file both modified.
                         {
                             Logger.Info(String.Format("Conflict with file: {0}", syncItem.RemoteLeafname));
+
                             // Rename local file with a conflict suffix.
                             string conflictFilename = Utils.CreateConflictFilename(filePath, repoInfo.User);
                             Logger.Debug(String.Format("Renaming conflicted local file {0} to {1}", filePath, conflictFilename));
                             File.Move(filePath, conflictFilename);
 
+                            // Remove the ".sync" suffix.
                             Logger.Debug(String.Format("Renaming temporary local download file {0} to {1}", tmpFilePath, filePath));
-                            // Remove the ".sync" suffix.
-                            // Remove the ".sync" suffix.
                             File.Move(tmpFilePath, filePath);
                             SetLastModifiedDate(remoteDocument, filePath, metadata);
 
@@ -1644,22 +1643,22 @@ namespace CmisSync.Lib.Sync
                     throw new OperationCanceledException("Sync was cancelled by user.");
                 }
 
-                if (repo.Status == SyncStatus.Suspend)
+                if ( ! repo.Enabled)
                 {
-                    while (repo.Status == SyncStatus.Suspend)
+                    while ( ! repo.Enabled)
                     {
-                        suspended = true;
+                        enabled = true;
                         Logger.DebugFormat("Sync of {0} is suspend, next retry in {1}ms", repoInfo.Name, SYNC_SUSPEND_SLEEP_INTERVAL);
                         System.Threading.Thread.Sleep(SYNC_SUSPEND_SLEEP_INTERVAL);
 
                         if (syncWorker.CancellationPending)
                         {
                             //Sync was cancelled...
-                            repo.Resume();
+                            repo.Enable();
                             throw new OperationCanceledException("Suspended sync was cancelled by user.");
                         }
                     }
-                    suspended = false;
+                    enabled = false;
                 }
             }
         }

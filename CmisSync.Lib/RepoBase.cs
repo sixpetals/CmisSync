@@ -19,7 +19,6 @@ using log4net;
 using System;
 using System.IO;
 using Timers = System.Timers;
-using CmisSync.Lib.Events;
 using CmisSync.Auth;
 
 namespace CmisSync.Lib
@@ -56,12 +55,6 @@ namespace CmisSync.Lib
 
 
         /// <summary>
-        /// Affect a new <c>SyncStatus</c> value.
-        /// </summary>
-        public Action<SyncStatus> SyncStatusChanged { get; set; }
-
-
-        /// <summary>
         /// Whether this folder's synchronization is running right now.
         /// </summary>
         public abstract bool isSyncing();
@@ -94,15 +87,15 @@ namespace CmisSync.Lib
         /// <summary>
         /// Current status of the synchronization (paused or not).
         /// </summary>
-        public SyncStatus Status { get; private set; }
+        public bool Enabled { get; private set; }
 
 
         /// <summary>
         /// Stop syncing momentarily.
         /// </summary>
-        public void Suspend()
+        public void Disable()
         {
-            Status = SyncStatus.Suspend;
+            Enabled = false;
             RepoInfo.IsSuspended = true;
 
             //Get configuration
@@ -115,9 +108,9 @@ namespace CmisSync.Lib
         /// <summary>
         /// Restart syncing.
         /// </summary>
-        public virtual void Resume()
+        public virtual void Enable()
         {
-            Status = SyncStatus.Idle;
+            Enabled = true;
             RepoInfo.IsSuspended = false;
 
             //Get configuration
@@ -192,7 +185,7 @@ namespace CmisSync.Lib
 
             this.activityListener = activityListener;
 
-            if (repoInfo.IsSuspended) Status = SyncStatus.Suspend;
+            Enabled = ! repoInfo.IsSuspended;
 
             // Folder lock.
             // Disabled for now. Can be an interesting feature, but should be made opt-in, as
@@ -221,21 +214,6 @@ namespace CmisSync.Lib
             };
             local_timer.AutoReset = false;
             local_timer.Interval = delay_interval;
-        }
-
-
-        private bool RepoInfoChanged(ISyncEvent e)
-        {
-            if (e is RepoConfigChangedEvent)
-            {
-                this.RepoInfo = (e as RepoConfigChangedEvent).RepoInfo;
-                return true;
-            }
-            else
-            {
-                // This should never ever happen!
-                return false;
-            }
         }
 
 
@@ -272,7 +250,6 @@ namespace CmisSync.Lib
                     this.local_timer.Stop();
                     this.local_timer.Dispose();
                     this.Watcher.Dispose();
-                    // this.folderLock.Dispose(); Folder lock disabled.
                 }
                 this.disposed = true;
             }
@@ -323,7 +300,10 @@ namespace CmisSync.Lib
 
             //Pause sync
             this.remote_timer.Stop();
-            if (Status == SyncStatus.Idle) Suspend();
+            if (Enabled)
+            {
+                Disable();
+            }
 
             //Update password...
             if (!String.IsNullOrEmpty(password))
@@ -346,7 +326,7 @@ namespace CmisSync.Lib
             config.Save();
 
             //Always resume sync...
-            Resume();
+            Enable();
             this.remote_timer.Start();
         }
 
@@ -476,22 +456,5 @@ namespace CmisSync.Lib
 
             return size;
         }
-    }
-
-
-    /// <summary>
-    /// Current status of the synchronization.
-    /// </summary>
-    public enum SyncStatus
-    {
-        /// <summary>
-        /// Normal operation.
-        /// </summary>
-        Idle,
-
-        /// <summary>
-        /// Synchronization is suspended.
-        /// </summary>
-        Suspend
     }
 }
