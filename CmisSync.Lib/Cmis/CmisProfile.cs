@@ -20,6 +20,11 @@ namespace CmisSync.Lib.Cmis
         protected static readonly ILog Logger = LogManager.GetLogger(typeof(CmisProfile));
 
         /// <summary>
+        /// Whether the CMIS server supports ordering by contentStreamFileName or not.
+        /// </summary>
+        public bool contentStreamFileNameOrderable { get; set; }
+
+        /// <summary>
         /// Whether to set local file names based on cmis:contentStreamName (true) or cmis:name (false)
         /// true is typically a good choice on Documentum
         /// false is typically a good choice on Alfresco
@@ -30,6 +35,8 @@ namespace CmisSync.Lib.Cmis
 
         public CmisProfile()
         {
+            contentStreamFileNameOrderable = false; // FIXME get that info from repository
+
             UseCmisStreamName = true;
 
             IgnoreIfSameLowercaseNames = !IsFileSystemCaseSensitive();
@@ -71,10 +78,16 @@ namespace CmisSync.Lib.Cmis
         /// <param name="operationContext"></param>
         public void ConfigureOperationContext(IOperationContext operationContext)
         {
+            /*
+            Disabled because repository may generate error if the type is not Orderable for cmis:contentStreamFileName
+            Documentum generates such an error: https://github.com/aegif/CmisSync/issues/724
+            Alfresco also is not Orderable even though it does not generate an error:
+            http://stackoverflow.com/questions/39290294/check-whether-cmiscontentstreamfilename-is-orderable
+            
             if (IgnoreIfSameLowercaseNames)
             {
                 // Depending on the CMIS profile, order by stream name or document name.
-                if (UseCmisStreamName)
+                if (UseCmisStreamName && contentStreamFileNameOrderable)
                 {
                     operationContext.OrderBy = "cmis:contentStreamFileName";
                 }
@@ -88,6 +101,7 @@ namespace CmisSync.Lib.Cmis
                 // Do not specify an order criteria, as we don't need it,
                 // and it might have a performance impact on the CMIS server.
             }
+            */
         }
 
 

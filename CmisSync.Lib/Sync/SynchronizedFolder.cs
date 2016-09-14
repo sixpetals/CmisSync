@@ -277,6 +277,9 @@ namespace CmisSync.Lib.Sync
                         || session.RepositoryInfo.Capabilities.ChangesCapability == CapabilityChanges.ObjectIdsOnly;
                 IsGetDescendantsSupported = session.RepositoryInfo.Capabilities.IsGetDescendantsSupported == true;
                 IsGetFolderTreeSupported = session.RepositoryInfo.Capabilities.IsGetFolderTreeSupported == true;
+                
+                //repoInfo.CmisProfile.contentStreamFileNameOrderable = session.RepositoryInfo.Capabilities. TODO
+
                 Config.SyncConfig.Folder folder = ConfigManager.CurrentConfig.GetFolder(this.repoInfo.Name);
                 if (folder != null)
                 {
@@ -437,7 +440,8 @@ namespace CmisSync.Lib.Sync
                             var lastTokenOnServer = CmisUtils.GetChangeLogToken(session);
                             success = CrawlSync(remoteFolder, remoteFolderPath, localFolder);
                             if(success) database.SetChangeLogToken(lastTokenOnServer);
-                        }else
+                        }
+                        else
                         {
                             // Full sync.
                             success = CrawlSync(remoteFolder, remoteFolderPath, localFolder);
